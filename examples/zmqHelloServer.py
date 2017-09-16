@@ -14,11 +14,17 @@ socket = context.socket(zmq.REP)
 socket.bind("tcp://*:5555")
 
 while True:
-    
-    message = socket.recv()
+
+    # bytes
+    #message = socket.recv()
+    # unicode
+    message = socket.recv_string()
     print("Received request: %s" % message)
     
     time.sleep(1)
 
-    socket.send(b"whatever you say")
+    # bytes
+    #socket.send(b"whatever you say")
+    # unicode
+    socket.send_string("whatever you say")
 
