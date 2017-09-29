@@ -8,43 +8,106 @@ import time
 import sys
 import ThreadingUtils
 
+
+
+
 class DataFuser(ThreadingUtils.MyPyThreading):
     """Class that receives data and merges it."""
-    def __init__(self, q):
+    def __init__(self, q, debug_time=-1):
         """Init."""
         ThreadingUtils.MyPyThreading.__init__(self)
         self.q = q
+        self.i = 0
+        self.debug_time=debug_time
+        self.t_last = time.time()
+        self.debug = False
+        self.data = None
+
+
+    def open():
+        """ do stuff here if needed"""
+
+    def close():
+        """ do stuff here if needed"""
+        
     
     def run(self):
         """Thread loop."""
-        t_start = time.time()
-        print('DataFuser loop start %d' % t_start)
-        print('DataFuser stop: %d' % self._stop_event.is_set())
+        self.t_last = time.time()
+        self.debug_print()
         while True:
-            print('DataFuser loop time %d' % time.time())
-            print('DataFuser stop: %d' % self._stop_event.is_set())
-            if self._stop_event.wait():
-            #    #if self._stop_event:
-            #    print('DataFuser stop event')
-            #    print('DataFuser stop: %d' % self._stop_event.is_set())
-            sys.stdout.flush()
-            #    break
-            
-            #data = self.q.get()
-            #
-            #if data is not None:
-            #    self.process(data)
-            #
-            #self.q.task_done()
-            #
-            #if (t_start - time.time()) % 2 == 0:
-            #    print('DataFuser loop')
-        print('DataFuser loop time %d' % time.time())
 
+            # stop if event happened
+            if self.stopped():
+                break
+
+            # process data
+            self.get_data()
+
+            # process the data
+            self.process_data()
     
-    def process(self,data):
-        self.print_data(data)
+            # update time
+            self.debug_print()
+    
+    def get_data(self):
 
-    def print_data(self,data):
-        print("Processing data: %s" % (data))
+        # get data if not empty
+        if not self.q.empty():
+
+            if self.debug:
+                print('DataFuser: counter %d waiting for data' % self.i)
+
+            # get data from queue
+            self.data = self.q.get(True, 1.)         
+
+            # finish queue task
+            self.q.task_done()
+
+            # increase counter
+            self.i += 1
+
+
+
+            
+    def process_data(self):
+        if self.debug:
+            print('DataFuser: counter %d\t process data %s' % (self.i, self.data_str(self.data)))
+
+
+            
+    def data_str(self,data):
+        if data is None:
+            return 'NULL'
+        return '%s' % data
+
+    def debug_print(self):
+        t = time.time()
+        if (t - self.t_last) > self.debug_time:
+            self.debug = True
+            self.t_last = t
+        else:
+            self.debug = False
+
+
+
+class SimpleFileDataFuser(DataFuser):
+    def __init__(self, q, debug_time=-1, file_name='datafile.dat'):
+        """Init."""
+        DataFuser.__init__(self, q, debug_time=debug_time)
+        self.f = None
+        self.file_name = file_name
+        print('debug_time %d ' % self.debug_time)
+
+    def open(self):
+        self.f = open(self.file_name,'w')
+
+    def close(self):
+        self.f.close()
+
+    def process_data(self):
+        if self.data is not None:
+            self.f.write(self.data + '\n')
+            # reset
+            self.data = None
 

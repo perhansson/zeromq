@@ -22,6 +22,8 @@ class MyPyThreading(threading.Thread):
 
     def stop(self):
         self._stop_event.set()
+        print('stopped thread %d' % self.stopped())
+    
 
     def stopped(self):
         return self._stop_event.is_set()

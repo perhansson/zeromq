@@ -11,57 +11,54 @@ import threading
 
 class DataBoss(object):
     """Data controller."""
-    def __init__(self):
+    def __init__(self, debug_time=-1):
         self.fuser = None
         self.q = queue.Queue()
-        self.num_agg_threads = 1
         self.aggs = []
+        self.debug_time = debug_time
+        print('debug_time = %d' % self.debug_time)
     
         
     def start(self):
         """Start the boss."""
         
-        # create fuser thread
-        self.fuser = DataFuser.DataFuser(self.q)
-        #self.fuser_thread = threading.Thread(target=self.fuser_worker, args=(self.fuser_thread_kill_event, "fuser_task"))
-        
-        # start the thread
+        # start the fuser
+        self.fuser.open()
         self.fuser.start()
         
         
-        # create the aggregator threads        
-        for i in range(self.num_agg_threads):
-
-            # create thread
-            agg = DataAggregator.ZmqDataAggregator(self.q)
-            
-            # start the thread
+        # start the aggregator threads        
+        for agg in self.aggs:
+            agg.open()
             agg.start()
-            
-            self.aggs.append(agg)
-
+        
         print('started threads')
         
     
     def end(self):
         """Stop the boss."""
+
+        # stop queue
+        print('stop queue')
+        self.q.join()
         
-        for t in self.aggs:
-            print('Kill agg thread')
-            t.stop()
-            t.join()
-            print('Kill agg thread')
-        
-        
-        print('Kill fuser thread')
+        # stop all threads first
+        for agg in self.aggs:
+            agg.stop()
+            agg.close()
         self.fuser.stop()
-        self.fuser.join()
-        print('Killed fuser thread')
+        self.fuser.close()
 
-    def print_status(self):
-
-        print('fuser thread: %d' % self.fuser.is_alive())
+        # now join threads
         for t in self.aggs:
-            print('agg thread: %d' % t.is_alive())
-    
-        
+            t.join()
+        self.fuser.join()
+        print('end threads complete')
+
+    def get_status(self):
+        s = 'Queue status:\tqsize %d' % self.q.qsize()
+        return s
+
+    def add_agg(self, a):
+        self.aggs.append(a)
+
