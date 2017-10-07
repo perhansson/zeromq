@@ -22,12 +22,13 @@ class DataFuser(ThreadingUtils.MyPyThreading):
         self.t_last = time.time()
         self.debug = False
         self.data = None
+        self.processed = 0
 
 
-    def open():
+    def open(self):
         """ do stuff here if needed"""
 
-    def close():
+    def close(self):
         """ do stuff here if needed"""
         
     
@@ -67,13 +68,9 @@ class DataFuser(ThreadingUtils.MyPyThreading):
             # increase counter
             self.i += 1
 
-
-
             
     def process_data(self):
-        if self.debug:
-            print('DataFuser: counter %d\t process data %s' % (self.i, self.data_str(self.data)))
-
+        """Do stuff here."""
 
             
     def data_str(self,data):
@@ -88,8 +85,15 @@ class DataFuser(ThreadingUtils.MyPyThreading):
             self.t_last = t
         else:
             self.debug = False
+    
+    def get_summary_str(self):
+        s = '--SUMMARY--'
+        s += '\nProcessed %d' % self.processed
+        if self.data is not None:
+            s += '\nlast data: %s' % self.data_str(self.data)
+        return s
 
-
+    
 
 class SimpleFileDataFuser(DataFuser):
     def __init__(self, q, debug_time=-1, file_name='datafile.dat'):
@@ -110,4 +114,18 @@ class SimpleFileDataFuser(DataFuser):
             self.f.write(self.data + '\n')
             # reset
             self.data = None
+            self.processed += 1
+
+
+
+
+class SimpleDumpDataFuser(DataFuser):
+    def __init__(self, q, debug_time=-1):
+        """Init."""
+        DataFuser.__init__(self, q, debug_time=debug_time)
+
+    def process_data(self):
+        if self.data is not None:
+            self.data = None
+            self.processed += 1
 

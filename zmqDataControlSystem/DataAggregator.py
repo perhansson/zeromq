@@ -1,5 +1,5 @@
 #
-# Class that receives messages over PULL socket.
+# 
 #
 #
 #
@@ -12,9 +12,10 @@ import ThreadingUtils
 class DataAggregator(ThreadingUtils.MyPyThreading):
     """Base class that gets data and puts it into a queue."""
 
-    def __init__(self, q, debug_time=-1):
+    def __init__(self, name, q, debug_time=-1):
         """Init."""
         ThreadingUtils.MyPyThreading.__init__(self)
+        self.name = name
         self.q = q
         self.debug_time = debug_time #print things every X sec
         self.t_last = time.time()
@@ -38,6 +39,7 @@ class DataAggregator(ThreadingUtils.MyPyThreading):
 
             # stop if event happened
             if self.stopped():
+                self.q.put(None)
                 break
 
             # get data
@@ -45,7 +47,7 @@ class DataAggregator(ThreadingUtils.MyPyThreading):
 
             # print stuff
             if self.debug:
-                print('DataAggregator:\tpull_counter %d\tdata %s' % (i, self.data_str(data)))
+                print('%s:\tpull_counter %d\tdata %s' % (self.name, i, self.data_str(data)))
 
             # put data into the queue
             self.q.put(data)
@@ -66,6 +68,9 @@ class DataAggregator(ThreadingUtils.MyPyThreading):
         """Converts data to human readable string if needed."""
         return data
 
+    def get_status(self):
+        """Return status string."""
+        return 'status'
 
     def debug_print(self):
         t = time.time()
@@ -82,9 +87,9 @@ class DataAggregator(ThreadingUtils.MyPyThreading):
 class LocalDataAggregator(DataAggregator):
     """Use a locally created message for data."""
     
-    def __init__(self, q, debug_time=-1, sleep = 1.0):
+    def __init__(self, name, q, debug_time=-1, sleep = 1.0):
         """Init."""
-        DataAggregator.__init__(self, q, debug_time)
+        DataAggregator.__init__(self, name, q, debug_time)
         self.i = 0
         self.sleep = sleep
     
@@ -108,21 +113,30 @@ class LocalDataAggregator(DataAggregator):
 class ZmqDataAggregator(DataAggregator):
     """Use zMQ PULL socket for data."""
 
-    def __init__(self, q, debug_time=-1):
+    def __init__(self, name, q, socket_nr=5558, debug_time=-1):
         """Init."""
-        DataAggregator.__init__(self, q, debug_time)
-    
+        DataAggregator.__init__(self, name, q, debug_time)
+        self.context = None
+        self.socket = None
+        self.socket_nr = socket_nr
+        self.setup_socket()
+
+    def setup_socket(self):
+        """Setup socket details."""
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.PULL)
+        self.socket.bind('tcp://*:%d' % self.socket_nr)
     
     def pull(self):
         """Pull message from socket."""
-        #t_last = time.time()
-        # message to receive
-        msg = receiver_socket.recv_string()
-        #t_end = time.time()
-        #print('Got message in %d seconds' % (t_end-t_last))
+        msg = None
+        try:
+            msg = self.socket.recv_string(flags=zmq.NOBLOCK)
+        except zmq.Again as e:
+            # maybe do something here if needed
+            pass
         return msg
     
 
-    
 
 
