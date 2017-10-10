@@ -115,11 +115,9 @@ class UberDataBoss(DataBoss):
         self.socket.bind(s)
 
     
-    def pub_msg(self,data):
-        """Publish message to socket."""
-        print('DataBoss: pub msg\"%s\"' % data)
+    def publish(self,data):
+        """Publish message."""
         self.socket.send_string(data)
-        print('DataBoss: pub msg\"%s\" DONE' % data)
     
 
     

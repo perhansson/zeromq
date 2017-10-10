@@ -20,6 +20,7 @@ class DataAggregator(ThreadingUtils.MyPyThreading):
         self.debug_time = debug_time #print things every X sec
         self.t_last = time.time()
         self.debug = False
+        self.counter = 0
 
 
     def open(self):
@@ -45,12 +46,16 @@ class DataAggregator(ThreadingUtils.MyPyThreading):
             # get data
             data = self.pull()
 
-            # print stuff
-            if self.debug:
-                print('%s:\tpull_counter %d\tdata %s' % (self.name, i, self.data_str(data)))
+            if data is not None:
+                # print stuff
+                #if self.debug:
+                #    print('%s:\tpull_counter %d\tdata %s' % (self.name, i, self.data_str(data)))
 
-            # put data into the queue
-            self.q.put(data)
+                # put data into the queue
+                self.q.put(data)
+
+                # update counter
+                self.counter += 1
 
             # increase counter
             i += 1
@@ -70,7 +75,7 @@ class DataAggregator(ThreadingUtils.MyPyThreading):
 
     def get_status(self):
         """Return status string."""
-        return 'status'
+        return 'processed %d' % self.counter
 
     def debug_print(self):
         t = time.time()
@@ -113,25 +118,19 @@ class LocalDataAggregator(DataAggregator):
 class ZmqDataAggregator(DataAggregator):
     """Use zMQ PULL socket for data."""
 
-    def __init__(self, name, q, socket_nr=5558, debug_time=-1):
+    def __init__(self, name, q, context, socket_nr=5558, debug_time=-1):
         """Init."""
         DataAggregator.__init__(self, name, q, debug_time)
-        self.context = None
-        self.socket = None
+        self.context = context
         self.socket_nr = socket_nr
-        self.setup_socket()
-
-    def setup_socket(self):
-        """Setup socket details."""
-        self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PULL)
         self.socket.bind('tcp://*:%d' % self.socket_nr)
-    
+
     def pull(self):
         """Pull message from socket."""
         msg = None
         try:
-            msg = self.socket.recv_string(flags=zmq.NOBLOCK)
+            msg = self.socket.recv_string(zmq.DONTWAIT)
         except zmq.Again as e:
             # maybe do something here if needed
             pass
