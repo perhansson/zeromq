@@ -26,8 +26,6 @@ if __name__ == '__main__':
 
 
     # create the DataAggregators
-    #agg = DataAggregator.LocalDataAggregator('agg', boss.q, debug_time=boss.debug_time, sleep = 0.2)
-
     agg1 = DataAggregator.ZmqDataAggregator('agg1', boss.q, socket_nr=5556, debug_time=boss.debug_time)
     agg2 = DataAggregator.ZmqDataAggregator('agg2', boss.q, socket_nr=5557, debug_time=boss.debug_time)
     agg3 = DataAggregator.ZmqDataAggregator('agg3', boss.q, socket_nr=5558, debug_time=boss.debug_time)

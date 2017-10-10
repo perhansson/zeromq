@@ -9,11 +9,11 @@ import zmq
 import time
 
 
-context zmq.Context()
+context = zmq.Context()
 
 # publish messages on this socket
 pub_socket = context.socket(zmq.PUB)
-pub_socket.bind('tcp://*5558')
+pub_socket.bind('tcp://*:5558')
 
 
 # publish some messages

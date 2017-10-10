@@ -8,6 +8,9 @@ import DataAggregator
 import DataFuser
 import queue
 import threading
+import zmq
+
+
 
 class DataBoss(object):
     """Data controller."""
@@ -46,15 +49,18 @@ class DataBoss(object):
         """Stop the boss."""
 
         # stop the data generating threads
+        print('stopping gen\'s')
         for gen in self.gens:
             gen.stop()
             gen.close()
             gen.join()
 
         # stop the queue and wait for each to be processed
+        print('stopping queue')
         self.q.join()
 
         # stop adding to the queue so that it can fully process
+        print('stopping aggs')
         for agg in self.aggs:
             agg.stop()
             agg.close()
@@ -64,6 +70,7 @@ class DataBoss(object):
             agg.join()
 
         # stop the fuser
+        print('stopping fuser')
         self.fuser.stop()
         self.fuser.close()
         self.fuser.join()
@@ -89,4 +96,31 @@ class DataBoss(object):
     def add_gen(self, g):
         """ Add data generator."""
         self.gens.append(g)
+
+class UberDataBoss(DataBoss):
+    """Data controller with flow control."""
+    def __init__(self, socket_pub_nr=5555, debug_time=-1):
+        DataBoss.__init__(self,debug_time)
+        self.socket_pub_nr = socket_pub_nr
+        self.context = None
+        self.socket = None
+        self.setup_socket()
+
+    def setup_socket(self):
+        """Setup socket details."""
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.PUB)
+        s = 'tcp://*:%d' % self.socket_pub_nr
+        print(s)
+        self.socket.bind(s)
+
+    
+    def pub_msg(self,data):
+        """Publish message to socket."""
+        print('DataBoss: pub msg\"%s\"' % data)
+        self.socket.send_string(data)
+        print('DataBoss: pub msg\"%s\" DONE' % data)
+    
+
+    
 
