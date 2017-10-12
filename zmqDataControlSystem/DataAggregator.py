@@ -1,22 +1,25 @@
 #
 # 
-#
+# Data aggregator classes
 #
 #
 
-import zmq
-import time
 import sys
+import time
+import zmq
+import queue
 import ThreadingUtils
 
 class DataAggregator(ThreadingUtils.MyPyThreading):
     """Base class that gets data and puts it into a queue."""
 
-    def __init__(self, name, q, debug_time=-1):
+    def __init__(self, name='aggegator', q=None, debug_time=-1):
         """Init."""
-        ThreadingUtils.MyPyThreading.__init__(self)
+        ThreadingUtils.MyPyThreading.__init__(self, name)
         self.name = name
         self.q = q
+        if self.q == None:
+            self.q = queue.Queue()
         self.debug_time = debug_time #print things every X sec
         self.t_last = time.time()
         self.debug = False
@@ -78,6 +81,8 @@ class DataAggregator(ThreadingUtils.MyPyThreading):
         return 'processed %d' % self.counter
 
     def debug_print(self):
+        if self.debug_time <= 0:
+            return
         t = time.time()
         if (t - self.t_last) > self.debug_time:
             self.debug = True

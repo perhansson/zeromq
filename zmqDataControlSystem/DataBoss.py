@@ -1,6 +1,6 @@
 #
 #
-#
+# Data boss classes
 #
 #
 
@@ -9,14 +9,17 @@ import DataFuser
 import queue
 import threading
 import zmq
+from Publisher import Publisher
 
 
 
 class DataBoss(object):
     """Data controller."""
-    def __init__(self, debug_time=-1):
-        self.fuser = None
+    def __init__(self, fuser=None, debug_time=-1):
         self.q = queue.Queue()
+        self.fuser = fuser
+        if self.fuser is None:
+            self.fuser = DataFuser.SimpleFileDataFuser(self.q)
         self.aggs = [] # data aggregators
         self.gens = [] # generators
         self.debug_time = debug_time
@@ -97,28 +100,16 @@ class DataBoss(object):
         """ Add data generator."""
         self.gens.append(g)
 
-class UberDataBoss(DataBoss):
-    """Data controller with flow control."""
-    def __init__(self, socket_pub_nr=5555, debug_time=-1):
-        DataBoss.__init__(self,debug_time)
-        self.socket_pub_nr = socket_pub_nr
-        self.context = None
-        self.socket = None
-        self.setup_socket()
+class PubDataBoss(DataBoss):
+    """Data controller that can publish messages."""
+    def __init__(self, context=None, fuser=None, socket_nr=5555, debug_time=-1):
+        DataBoss.__init__(self, fuser, debug_time)
+        self.context = context
+        if self.context is None:
+            self.context = zmq.Context()
+        self.publisher = Publisher(context=self.context, socket_nr=socket_nr)
 
-    def setup_socket(self):
-        """Setup socket details."""
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.PUB)
-        s = 'tcp://*:%d' % self.socket_pub_nr
-        print(s)
-        self.socket.bind(s)
 
-    
-    def publish(self,data):
-        """Publish message."""
-        self.socket.send_string(data)
-    
 
     
 

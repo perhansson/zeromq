@@ -15,7 +15,7 @@ class DataFuser(ThreadingUtils.MyPyThreading):
     """Class that receives data and merges it."""
     def __init__(self, q, debug_time=-1):
         """Init."""
-        ThreadingUtils.MyPyThreading.__init__(self)
+        ThreadingUtils.MyPyThreading.__init__(self, name='DataFuser')
         self.q = q
         self.i = 0
         self.debug_time=debug_time
@@ -79,6 +79,8 @@ class DataFuser(ThreadingUtils.MyPyThreading):
         return '%s' % data
 
     def debug_print(self):
+        if self.debug_time <= 0:
+            return
         t = time.time()
         if (t - self.t_last) > self.debug_time:
             self.debug = True
@@ -97,7 +99,7 @@ class DataFuser(ThreadingUtils.MyPyThreading):
 
 class SimpleFileDataFuser(DataFuser):
     def __init__(self, q, debug_time=-1, file_name='datafile.dat'):
-        """Init."""
+        """Class that merges all data into a file."""
         DataFuser.__init__(self, q, debug_time=debug_time)
         self.f = None
         self.file_name = file_name

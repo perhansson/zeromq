@@ -9,13 +9,14 @@ import zmq
 import time
 import sys
 import ThreadingUtils
+from Subscriber import Subscriber
 
 class DataGenerator(ThreadingUtils.MyPyThreading):
     """Base class that sends data."""
 
-    def __init__(self, name, debug_time=-1):
+    def __init__(self, name='generator', debug_time=-1):
         """Init."""
-        ThreadingUtils.MyPyThreading.__init__(self)
+        ThreadingUtils.MyPyThreading.__init__(self, name)
         self.name = name
         self.debug_time = debug_time 
         self.t_last = time.time()
@@ -77,6 +78,8 @@ class DataGenerator(ThreadingUtils.MyPyThreading):
         return 'processed: %d' % (self.counter)
 
     def debug_print(self):
+        if self.debug_time <= 0:
+            return
         t = time.time()
         if (t - self.t_last) > self.debug_time:
             self.debug = True
@@ -91,10 +94,12 @@ class DataGenerator(ThreadingUtils.MyPyThreading):
 class LocalZmqDataGenerator(DataGenerator):
     """Use a locally created message for data to send."""
     
-    def __init__(self, name, context, socket_host='localhost', socket_nr=5558, debug_time=-1, sleep = -1.0):
+    def __init__(self, name, context=None, socket_host='localhost', socket_nr=5558, debug_time=-1, sleep = -1.0):
         """Init."""
         DataGenerator.__init__(self, name, debug_time)
         self.context = context
+        if self.context == None:
+            self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PUSH)
         self.socket.connect('tcp://%s:%d' % (socket_host, socket_nr))
         self.sleep = sleep
@@ -121,35 +126,37 @@ class LocalZmqDataGenerator(DataGenerator):
 class LocalZmqSubDataGenerator(LocalZmqDataGenerator):
     """Use a locally created message for data to send with flow control controlled by server."""
     
-    def __init__(self, name, context, socket_sub_nr=5555, socket_sub_host='localhost', socket_host='localhost', socket_nr=5558, debug_time=-1, sleep = -1.0):
+    def __init__(self, name, context=None, socket_sub_nr=5555, socket_sub_host='localhost', socket_host='localhost', socket_nr=5558, debug_time=-1, sleep = -1.0):
         """Init."""
         LocalZmqDataGenerator.__init__(self, name, context, socket_host, socket_nr, debug_time, sleep)
-        self.state = 'Running'
-        self.socket_sub = self.context.socket(zmq.SUB)
-        self.socket_sub.setsockopt_string(zmq.SUBSCRIBE, 'Boss')
-        self.socket_sub.connect('tcp://%s:%d' % (socket_sub_host, socket_sub_nr))
-    
+        self.state = 'Stopped'
+        self.subscriber = Subscriber(name='%s-subscriber' % name, context=context, socket_nr = socket_sub_nr, hostname=socket_sub_host)
 
-    def pull_sub(self):
-        """Get messages from publisher.
-        Note that this will hang until a message is fully completed.
-        """
-        msg = None
-        try:
-            s = self.socket_sub.recv(zmq.DONTWAIT)
-            topic, messagedata = s.split()
-            # it needs to be decoded, even though it was publihsed as string?
-            msg = messagedata.decode('utf-8') 
-        except zmq.Again as e:
-            pass
-        return msg
-    
+    def stop(self):
+        """Stop event."""
 
-    def process_sub(self):
+        # stop the subsciber
+        self.subscriber.stop()
+        
+        # stop this thread normally through super class method
+        super(LocalZmqSubDataGenerator,self).stop()
+
+    
+    def start(self):
+        """Start thread."""
+
+        # start the subsciber
+        self.subscriber.start()
+        
+        # start this thread normally through super class method
+        super(LocalZmqSubDataGenerator,self).start()
+
+    
+    def process_sub(self, data):
         """ Process subscriber related tasks."""
 
         # pull message
-        msg = self.pull_sub()
+        msg = data.decode('utf-8')
 
         # do stuff with it
         if msg is not None:
@@ -159,7 +166,6 @@ class LocalZmqSubDataGenerator(LocalZmqDataGenerator):
                 self.state = 'Running'
     
     
-
     def get_status(self):
         """Return status string."""
         return 'State: %s\tprocessed: %d' % (self.state, self.counter)
@@ -177,11 +183,21 @@ class LocalZmqSubDataGenerator(LocalZmqDataGenerator):
             if self.stopped():
                 break
 
-            # this should be replaced by a thread that updates stuff in the background.
-            self.process_sub()
+            # check if we received a published message
+            if self.subscriber.data_ready():
 
+                # get the message
+                msg = self.subscriber.get_data()
+                # mark data as read
+                self.subscriber.reset()
 
-            # send data
+                if self.debug:
+                    print('%s:\t data from publisher: \"%s\" ' % (self.name, msg))
+
+                # process message
+                self.process_sub(msg)
+
+            
             if self.state is 'Running':
                 # get data
                 data = self.pull()
