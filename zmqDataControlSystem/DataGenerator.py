@@ -78,15 +78,18 @@ class DataGenerator(ThreadingUtils.MyPyThreading):
         return 'processed: %d' % (self.counter)
 
     def debug_print(self):
-        if self.debug_time <= 0:
-            return
-        t = time.time()
-        if (t - self.t_last) > self.debug_time:
+        if self.debug_time < 0:
+            return False
+        elif self.debug_time == 0:
             self.debug = True
-            self.t_last = t
         else:
-            self.debug = False
-    
+            t = time.time()
+            if (t - self.t_last) > self.debug_time:
+                self.debug = True
+                self.t_last = t
+            else:
+                self.debug = False
+
 
 
 
@@ -207,7 +210,7 @@ class LocalZmqSubDataGenerator(LocalZmqDataGenerator):
                     #if self.debug:
                     #    print('%s:\tpull_counter %d\tdata %s' % (self.name, i, self.data_str(data)))
                     # send it
-                    self.send('data')
+                    self.send(data)
 
             # increase pull counter
             i += 1

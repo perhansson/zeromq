@@ -35,11 +35,15 @@ if __name__ == '__main__':
 
     # let it run for some time and print status at regular intervals
     i = 0
-    while i < 10:
+    while i < 20:
         print(boss.get_status())
         if i == 1:
             boss.publisher.publish('Running')
-        if i ==4:
+        if i == 4:
+            boss.publisher.publish('Stopped')
+        if i == 10:
+            boss.publisher.publish('Running')
+        if i == 14:
             boss.publisher.publish('Stopped')
         i += 1
         time.sleep(1.0)
